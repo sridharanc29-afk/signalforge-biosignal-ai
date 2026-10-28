@@ -145,7 +145,48 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
   Smoothed variation<strong id="smooth">—</strong>
  </div>
 </div>
+<div class="card">
+ <div class="tag">05 — ECG PEAK DETECTION</div>
 
+ <p>
+  Detect candidate peaks in your current signal.
+  For meaningful heart-rate estimates, use suitable ECG data
+  with a known sampling rate.
+ </p>
+
+ <label for="samplingRate">Sampling rate (samples per second):</label>
+ <br>
+
+ <input
+  type="number"
+  id="samplingRate"
+  value="250"
+  min="1"
+  max="10000"
+  step="1"
+  style="width:100%;"
+ >
+
+ <br>
+
+ <button onclick="analyzePeaks()">
+  Detect candidate peaks
+ </button>
+
+ <div class="stat">
+  Candidate peaks
+  <strong id="peakCount">—</strong>
+ </div>
+
+ <div class="stat">
+  Estimated heart rate
+  <strong id="heartRate">—</strong>
+ </div>
+
+ <p id="peakStatus" class="small">
+  Load a signal and run peak detection.
+ </p>
+</div>
 <div class="card">
  <div class="tag">05 — EXPERIMENT REPORT</div>
  <p>
@@ -381,7 +422,130 @@ function toggleFilter(){
  showFilter=!showFilter;
  updateChart();
 }
+function analyzePeaks(){
+ if(raw.length<10){
+  document.getElementById("peakCount").textContent="—";
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "Too few samples. Load at least 10 samples; meaningful ECG analysis generally requires much more data.";
+  return;
+ }
 
+ const rate=Number(document.getElementById("samplingRate").value);
+
+ if(!Number.isFinite(rate)||rate<=0){
+  alert("Enter a valid positive sampling rate.");
+  return;
+ }
+
+ const mean=raw.reduce((a,b)=>a+b,0)/raw.length;
+
+ const sd=variation(raw);
+
+ if(sd===0){
+  document.getElementById("peakCount").textContent="0";
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "The signal is constant. No candidate peaks can be detected.";
+  return;
+ }
+
+ // Basic educational detector:
+ // Find local maxima above the signal mean.
+ const threshold=mean+0.5*sd;
+ const candidates=[];
+
+ for(let i=1;i<raw.length-1;i++){
+  if(
+   raw[i]>raw[i-1] &&
+   raw[i]>=raw[i+1] &&
+   raw[i]>threshold
+  ){
+   candidates.push(i);
+  }
+ }
+
+ // Keep candidate peaks separated by at least 250 ms.
+ const minDistance=Math.max(1,Math.round(rate*0.25));
+ const peaks=[];
+
+ for(const index of candidates){
+  if(
+   peaks.length===0 ||
+   index-peaks[peaks.length-1]>=minDistance
+  ){
+   peaks.push(index);
+  }else if(raw[index]>raw[peaks[peaks.length-1]]){
+   peaks[peaks.length-1]=index;
+  }
+ }
+
+ document.getElementById("peakCount").textContent=peaks.length;
+
+ // Plot detected candidate peaks on the original signal.
+ const traces=[
+  {
+   x:x,y:raw,type:"scatter",mode:"lines",
+   name:"Original signal",
+   line:{color:"#65a9ff",width:1.3}
+  },
+  ...(showFilter?[{
+   x:x,y:filtered,type:"scatter",mode:"lines",
+   name:"Smoothed signal",
+   line:{color:"#53e0b5",width:2}
+  }]:[]),
+  {
+   x:peaks.map(i=>x[i]),
+   y:peaks.map(i=>raw[i]),
+   type:"scatter",mode:"markers",
+   name:"Candidate peaks",
+   marker:{color:"#ffb454",size:10,symbol:"circle"}
+  }
+ ];
+
+ Plotly.react("chart",traces,{
+  paper_bgcolor:"#111e30",
+  plot_bgcolor:"#111e30",
+  font:{color:"#dce8f8"},
+  margin:{l:50,r:15,t:20,b:55},
+  xaxis:{title:"Time / sample index",gridcolor:"#253750"},
+  yaxis:{title:"Amplitude (input units)",gridcolor:"#253750"},
+  legend:{orientation:"h",y:-0.25}
+ },{responsive:true,displaylogo:false});
+
+ const duration=(raw.length-1)/rate;
+
+ if(peaks.length<2 || duration<3){
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "Found "+peaks.length+" candidate peak(s). The recording is too short or has too few peaks for a meaningful heart-rate estimate. This detector is not clinically validated.";
+  return;
+ }
+
+ const intervals=[];
+
+ for(let i=1;i<peaks.length;i++){
+  intervals.push((peaks[i]-peaks[i-1])/rate);
+ }
+
+ const sorted=[...intervals].sort((a,b)=>a-b);
+ const mid=Math.floor(sorted.length/2);
+
+ const median=sorted.length%2
+  ?sorted[mid]
+  :(sorted[mid-1]+sorted[mid])/2;
+
+ const bpm=60/median;
+
+ document.getElementById("heartRate").textContent=
+  Number.isFinite(bpm)?bpm.toFixed(1)+" BPM":"—";
+
+ document.getElementById("peakStatus").textContent=
+  "Found "+peaks.length+" candidate peaks in approximately "+
+  duration.toFixed(2)+" seconds. Estimated rate uses the median "+
+  interval between detected peaks. This simple detector may miss "+
+  peaks or mark noise; the estimate is not a medical result.";
+    }
 function updateChart(){
  if(!raw.length)return;
 
