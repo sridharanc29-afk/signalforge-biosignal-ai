@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SignalForge | BioSignal Research Lab</title>
-<script>alert("SignalForge page loaded!");</script>
  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
 <style>
@@ -544,8 +543,8 @@ function analyzePeaks(){
  document.getElementById("peakStatus").textContent=
   "Found "+peaks.length+" candidate peaks in approximately "+
   duration.toFixed(2)+" seconds. Estimated rate uses the median "+
-  interval between detected peaks. This simple detector may miss "+
-  peaks or mark noise; the estimate is not a medical result.";
+  "interval between detected peaks. This simple detector may miss "+
+ "peaks or mark noise; the estimate is not a medical result.";
     }
 function updateChart(){
  if(typeof Plotly==="undefined"){
