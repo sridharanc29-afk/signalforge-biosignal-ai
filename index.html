@@ -632,7 +632,15 @@ function updateChart(){
  document.getElementById("report").textContent=report;
 }
 
-generateSignal();
+window.onerror = function(message, source, line, column) {
+  alert("JavaScript error: " + message + " at line " + line);
+};
+
+try {
+  generateSignal();
+} catch (error) {
+  alert("Startup error: " + error.message);
+}
 </script>
 
 </body>
