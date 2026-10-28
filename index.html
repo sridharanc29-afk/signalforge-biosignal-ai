@@ -82,7 +82,14 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
  </p>
 
  <input type="file" id="csvFile" accept=".csv,.txt">
+<textarea id="csvText" rows="6"
+ style="width:100%;margin-top:10px;padding:12px;
+ background:#0b1828;color:white;border:1px solid #36506d;
+ border-radius:9px;"
+ placeholder="Paste CSV data here&#10;Time,Amplitude&#10;0.00,0.12&#10;0.01,0.18&#10;0.02,0.10"></textarea>
 
+<br>
+<button onclick="pasteCSV()">Analyze pasted CSV</button>
  <br>
  <button onclick="uploadCSV()">Load and analyze CSV</button>
  <button onclick="downloadSample()">Download sample CSV</button>
@@ -302,7 +309,55 @@ function uploadCSV(){
 
  reader.readAsText(file);
 }
+function pasteCSV(){
+ const text=document.getElementById("csvText").value.trim();
 
+ if(!text){
+  alert("Bro, paste some CSV data first!");
+  return;
+ }
+
+ const lines=text.split(/\r?\n/);
+ const newX=[];
+ const newRaw=[];
+
+ for(const line of lines){
+  const parts=line.split(/[,;\t]/).map(v=>v.trim());
+  const values=parts.map(Number);
+
+  // Skip headings and invalid rows.
+  if(values.some(v=>v==="" || !Number.isFinite(v)))continue;
+
+  if(parts.length>=2){
+   newX.push(values[0]);
+   newRaw.push(values[1]);
+  }else{
+   newX.push(newRaw.length);
+   newRaw.push(values[0]);
+  }
+ }
+
+ if(newRaw.length<2){
+  alert("Please enter at least two rows of numerical data.");
+  return;
+ }
+
+ if(newRaw.length>100000){
+  alert("Please use no more than 100,000 samples.");
+  return;
+ }
+
+ x=newX;
+ raw=newRaw;
+ filtered=calculateFilter(raw);
+ showFilter=true;
+ sourceName="Pasted CSV data";
+
+ document.getElementById("uploadStatus").textContent=
+  "Successfully loaded "+raw.length+" samples from pasted data.";
+
+ updateChart();
+}
 function downloadSample(){
  const content=
   "Time,Amplitude\n"+
