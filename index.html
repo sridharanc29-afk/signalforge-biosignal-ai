@@ -81,7 +81,12 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
   Use one column for amplitude or two columns for time and amplitude.
  </p>
 
- <input type="file" id="csvFile" accept=".csv,.txt">
+ <input
+  type="file"
+  id="csvFile"
+  accept=".csv,.txt,text/csv,text/plain"
+  style="display:block;width:100%;min-height:48px;padding:10px;cursor:pointer;touch-action:manipulation;"
+>
 <textarea id="csvText" rows="6"
  style="width:100%;margin-top:10px;padding:12px;
  background:#0b1828;color:white;border:1px solid #36506d;
@@ -91,8 +96,21 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
 <br>
 <button onclick="pasteCSV()">Analyze pasted CSV</button>
  <br>
- <button onclick="uploadCSV()">Load and analyze CSV</button>
- <button onclick="downloadSample()">Download sample CSV</button>
+ <button
+  type="button"
+  onclick="uploadCSV()"
+  style="width:100%;min-height:48px;margin:8px 0;"
+>
+  Load and analyze CSV
+</button>
+
+<button
+  type="button"
+  onclick="downloadSample()"
+  style="width:100%;min-height:48px;margin:8px 0;"
+>
+  Download sample CSV
+</button>
 
  <p id="uploadStatus" class="status">
   No custom signal loaded.
