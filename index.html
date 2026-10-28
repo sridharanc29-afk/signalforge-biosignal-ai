@@ -503,7 +503,7 @@ function analyzePeaks(){
   }
  ];
 
- Plotly.react("chart",traces,{
+ Plotly.newPlot("chart",traces,{
   paper_bgcolor:"#111e30",
   plot_bgcolor:"#111e30",
   font:{color:"#dce8f8"},
@@ -576,7 +576,7 @@ function updateChart(){
   });
  }
 
- Plotly.react("chart",traces,{
+ Plotly.newPlot("chart",traces,{
   paper_bgcolor:"#111e30",
   plot_bgcolor:"#111e30",
   font:{color:"#dce8f8"},
