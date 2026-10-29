@@ -544,7 +544,7 @@ function analyzePeaks(){
    name:"Original signal",
    line:{color:"#65a9ff",width:1.3}
   },
-  ...(showFilter?[{
+    ...(showFilter&&document.getElementById("filterType").value!=="none"?[{
    x:x,y:filtered,type:"scatter",mode:"lines",
    name:"Smoothed signal",
    line:{color:"#53e0b5",width:2}
