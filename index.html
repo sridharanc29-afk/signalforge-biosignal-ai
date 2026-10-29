@@ -68,7 +68,15 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
 
  <br>
  <button onclick="generateSignal()">Generate new sample</button>
- <button onclick="toggleFilter()">Toggle smoothing</button>
+ <label for="filterType">Filter method:</label>
+
+<select id="filterType" onchange="updateChart()">
+  <option value="moving">Moving Average</option>
+  <option value="exponential">Exponential Smoothing</option>
+  <option value="none">No Filter</option>
+</select>
+
+<button onclick="toggleFilter()">Toggle smoothing</button>
  <div class="small">
   Simulated signals are artificial examples, not real patient data.
  </div>
