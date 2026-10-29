@@ -671,11 +671,19 @@ if (showFilter && document.getElementById("filterType").value !== "none") {
   "MAXIMUM AMPLITUDE: "+max.toFixed(4)+"\n\n"+
   "SMOOTHING OBSERVATION:\n";
 
- if(smoothVariation<sd){
-  report+="The moving-average filter reduced the signal's "+
+  const filterMethod=document.getElementById("filterType").value;
+ const filterName=filterMethod==="exponential"
+  ?"exponential smoothing"
+  :"moving-average filter";
+
+ if(filterMethod==="none"){
+  report+="No smoothing was applied, so the signal is unchanged.\n";
+ }else if(smoothVariation<sd){
+  report+="The "+filterName+" reduced the signal's "+
    "standard deviation by approximately "+reduction+"%.\n";
  }else{
-  report+="The filtered signal's standard deviation did not decrease.\n";
+  report+="The "+filterName+" did not decrease the signal's "+
+   "standard deviation.\n";
  }
 
  report+=
