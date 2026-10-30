@@ -214,7 +214,25 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
  </p>
 </div>
 <div class="card">
- <div class="tag">05 — EXPERIMENT REPORT</div>
+  <div class="tag">06 — SIGNAL QUALITY ANALYSIS</div>
+
+  <p>
+    Check your signal for possible flat sections and unusual values.
+    This is a basic educational screening tool.
+  </p>
+
+  <button onclick="analyzeSignalQuality()">
+    Analyze Signal Quality
+  </button>
+
+  <div
+    id="qualityReport"
+    style="margin-top: 15px; padding: 15px; background: #0b1828;
+    border-radius: 10px; white-space: pre-wrap; line-height: 1.7;"
+  >Generate a signal, then click Analyze Signal Quality.</div>
+</div>
+<div class="card">
+ <div class="tag">07 — EXPERIMENT REPORT</div>
  <p>
   Automatically summarize the loaded measurements and the effect
   of smoothing.
@@ -601,6 +619,80 @@ function analyzePeaks(){
   "interval between detected peaks. This simple detector may miss "+
  "peaks or mark noise; the estimate is not a medical result.";
     }
+function analyzeSignalQuality() {
+  const output = document.getElementById("qualityReport");
+
+  if (!raw || raw.length < 10) {
+    output.textContent =
+      "Please generate a signal or upload at least 10 samples first.";
+    return;
+  }
+
+  const count = raw.length;
+  const mean = raw.reduce((sum, value) => sum + value, 0) / count;
+  const sd = variation(raw);
+  const min = Math.min(...raw);
+  const max = Math.max(...raw);
+
+  // Count adjacent samples that barely change.
+  let flatPairs = 0;
+
+  for (let i = 1; i < count; i++) {
+    if (Math.abs(raw[i] - raw[i - 1]) < 0.000001) {
+      flatPairs++;
+    }
+  }
+
+  const flatPercent = (flatPairs / (count - 1)) * 100;
+
+  // Flag values far from the mean for review.
+  let extremeCount = 0;
+
+  if (sd > 0) {
+    for (const value of raw) {
+      if (Math.abs(value - mean) > 3 * sd) {
+        extremeCount++;
+      }
+    }
+  }
+
+  let report = "SIGNAL QUALITY ANALYSIS\n\n";
+  report += "Samples analyzed: " + count + "\n";
+  report += "Standard deviation: " + sd.toFixed(4) + "\n";
+  report += "Minimum: " + min.toFixed(4) + "\n";
+  report += "Maximum: " + max.toFixed(4) + "\n\n";
+
+  report += "FLAT SECTION CHECK\n";
+  report += "Nearly unchanged adjacent samples: " +
+    flatPairs + " (" + flatPercent.toFixed(2) + "%)\n\n";
+
+  report += "EXTREME VALUE CHECK\n";
+  report += "Samples more than 3 standard deviations from the mean: " +
+    extremeCount + "\n\n";
+
+  report += "INTERPRETATION\n";
+
+  if (flatPercent > 5) {
+    report +=
+      "Many adjacent samples barely change. Inspect the signal for possible flat sections.\n";
+  } else {
+    report +=
+      "Few exactly or nearly repeated adjacent samples were detected by this check.\n";
+  }
+
+  if (extremeCount > 0) {
+    report +=
+      "Some values are unusually far from the mean. Inspect them; they may represent peaks, artifacts, or valid signal features.\n";
+  } else {
+    report +=
+      "No values exceeded the simple 3-standard-deviation threshold.\n";
+  }
+
+  report +=
+    "\nLIMITATION\nThis is a basic screening tool, not a validated signal-quality score. It does not reliably measure noise or diagnose medical conditions.";
+
+  output.textContent = report;
+}
 function updateChart(){
  if(typeof Plotly==="undefined"){
  document.getElementById("uploadStatus").textContent =
@@ -714,6 +806,189 @@ try {
   alert("Startup error: " + error.message);
 }
 </script>
+<!-- SignalForge AI Lab Assistant -->
+<section id="ai-lab" style="
+  margin: 30px auto;
+  padding: 24px;
+  max-width: 900px;
+  background: #111827;
+  color: #f9fafb;
+  border: 1px solid #374151;
+  border-radius: 16px;
+  font-family: Arial, sans-serif;
+">
+  <h2>🧠 SignalForge AI Lab Assistant</h2>
 
+  <p>
+    Explore your signal measurements and learn biomedical
+    signal-processing concepts.
+  </p>
+
+  <label for="ai-question">Ask a question about your experiment:</label>
+
+  <textarea id="ai-question"
+    placeholder="Example: What does signal variation mean?"
+    style="
+      display: block;
+      width: 100%;
+      min-height: 90px;
+      margin: 12px 0;
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 8px;
+    "></textarea>
+
+  <button onclick="explainSignal()"
+    style="
+      padding: 12px 18px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    ">
+    Explain My Results
+  </button>
+
+  <div id="ai-response" aria-live="polite"
+    style="
+      margin-top: 18px;
+      padding: 16px;
+      background: #1f2937;
+      border-radius: 8px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    ">
+    Your explanation will appear here.
+  </div>
+
+  <p style="font-size: 12px; color: #9ca3af;">
+    Educational tool only. This feature does not diagnose medical
+    conditions. The current explanation is a prototype, not a live AI response.
+  </p>
+</section>
+
+<script>
+async function explainSignal() {
+  const question = document
+    .getElementById("ai-question")
+    .value.trim();
+
+  const response = document.getElementById("ai-response");
+
+  if (!question) {
+    response.textContent = "Please enter a question first.";
+    return;
+  }
+
+  if (!raw || raw.length < 2) {
+    response.textContent =
+      "Please generate a signal or upload numerical data first.";
+    return;
+  }
+  // Identify the signal type and explain it in simple English.
+  const signalType = String(sourceName).toLowerCase();
+
+  let signalExplanation = "";
+
+  if (signalType.includes("ecg")) {
+    signalExplanation =
+      "ECG: This signal represents electrical activity of the heart. " +
+      "Look for repeating patterns and changes in waveform shape. " +
+      "This simulated or uploaded signal cannot diagnose heart conditions.";
+
+  } else if (signalType.includes("eeg")) {
+    signalExplanation =
+      "EEG: This signal represents electrical activity recorded from the brain. " +
+      "Waveform patterns depend on the recording conditions. " +
+      "This signal alone cannot diagnose neurological conditions.";
+
+  } else if (signalType.includes("emg")) {
+    signalExplanation =
+      "EMG: This signal represents electrical activity associated with muscles. " +
+      "Amplitude changes may relate to muscle activation, but interpretation " +
+      "depends on the sensor, recording method, and task.";
+
+  } else if (signalType.includes("ppg")) {
+    signalExplanation =
+      "PPG: This optical signal measures changes in blood volume in tissue. " +
+      "Repeated pulses may be visible, but this signal alone cannot establish " +
+      "a person's health or diagnose a condition.";
+
+  } else {
+    signalExplanation =
+      "Signal: This dataset contains numerical measurements. " +
+      "Its physical meaning depends on the source and units.";
+  }
+  const count = raw.length;
+  const mean = raw.reduce((sum, value) => sum + value, 0) / count;
+  const sd = variation(raw);
+  const min = Math.min(...raw);
+  const max = Math.max(...raw);
+
+  const filterMethod =
+    document.getElementById("filterType").value;
+
+  const filterNames = {
+    moving: "Moving Average",
+    exponential: "Exponential Smoothing",
+    none: "No Filter"
+  };
+
+  const filteredSignal = calculateFilter(raw);
+  const filteredSD = variation(filteredSignal);
+
+  const measurements = {
+    source: sourceName,
+    sampleCount: count,
+    mean: Number(mean.toFixed(4)),
+    standardDeviation: Number(sd.toFixed(4)),
+    minimum: Number(min.toFixed(4)),
+    maximum: Number(max.toFixed(4)),
+    filterMethod: filterNames[filterMethod] || filterMethod,
+    filteredStandardDeviation: Number(filteredSD.toFixed(4))
+  };
+
+  response.textContent = "Sending your question to SignalForge...";
+
+  try {
+    const result = await fetch(
+      "https://signalforge-ai.csrider477.workers.dev",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          question: question,
+          measurements: measurements
+        })
+      }
+    );
+
+    const data = await result.json();
+
+    if (!result.ok) {
+      throw new Error(data.error || "The request failed.");
+    }
+
+ response.textContent =
+  "SIGNALFORGE LAB ASSISTANT\n\n" +
+  signalExplanation + "\n\n" +
+  "YOUR QUESTION:\n" + question + "\n\n" +
+  "SIGNAL MEASUREMENTS:\n" +
+  JSON.stringify(measurements, null, 2) +
+  "\n\nBACKEND STATUS:\n" +
+  (data.aiConnected
+    ? "AI model connected."
+    : "Backend connected, but a real AI model is not connected yet.");
+  } catch (error) {
+    response.textContent =
+      "Connection failed.\n\n" +
+      "Please check your internet connection and Worker settings.\n\n" +
+      "Details: " + error.message;
+  }
+}
+</script>
 </body>
 </html>
