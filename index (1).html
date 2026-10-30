@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SignalForge | BioSignal Research Lab</title>
+ <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:18px;background:#08111f;
+ color:#eaf2ff;font-family:Arial,sans-serif
+}
+header{padding:15px 0}
+.tag{color:#53e0b5;font-size:12px;letter-spacing:2px}
+h1{font-size:30px;margin:10px 0}
+p{color:#a9b8cc;line-height:1.6}
+.card{
+ background:#111e30;border:1px solid #253750;
+ border-radius:16px;padding:17px;margin:16px 0
+}
+button,select,input{
+ max-width:100%;padding:12px;border-radius:9px;
+ border:1px solid #36506d;background:#1a2b41;
+ color:white;font-size:14px;margin:5px 3px
+}
+button{background:#087f67;border:0;font-weight:bold}
+button:active{transform:scale(.98)}
+.stat{
+ display:inline-block;background:#1a2b41;padding:12px;
+ border-radius:10px;margin:4px;font-size:13px
+}
+.stat strong{
+ display:block;font-size:20px;color:#53e0b5;margin-top:5px
+}
+#chart{width:100%;height:320px}
+.small{font-size:12px;color:#8296b0;line-height:1.6}
+#report{
+ background:#0b1828;padding:13px;border-radius:10px;
+ white-space:pre-wrap;line-height:1.7;color:#dce8f8
+}
+.status{color:#53e0b5;font-size:13px}
+footer{padding:20px 0;color:#8296b0;font-size:12px}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="tag">BIOSIGNAL RESEARCH • INTERACTIVE LAB</div>
+ <h1>🔬 SignalForge</h1>
+ <p>Explore biological signals. Analyze measurements.
+ Compare waveforms. Learn signal processing.</p>
+ <div class="small">Research and educational prototype</div>
+</header>
+
+<div class="card">
+ <div class="tag">01 — SIGNAL CONTROLS</div>
+ <p>Choose a simulated signal or upload your own CSV data.</p>
+
+ <select id="kind" onchange="generateSignal()">
+  <option value="ecg">ECG — simulated heartbeat</option>
+  <option value="eeg">EEG — simulated brain activity</option>
+  <option value="emg">EMG — simulated muscle activity</option>
+  <option value="ppg">PPG — simulated pulse waveform</option>
+ </select>
+
+ <br>
+ <button onclick="generateSignal()">Generate new sample</button>
+ <label for="filterType">Filter method:</label>
+
+<select id="filterType" onchange="updateChart()">
+  <option value="moving">Moving Average</option>
+  <option value="exponential">Exponential Smoothing</option>
+  <option value="none">No Filter</option>
+</select>
+
+<button onclick="toggleFilter()">Toggle smoothing</button>
+ <div class="small">
+  Simulated signals are artificial examples, not real patient data.
+ </div>
+</div>
+
+<div class="card">
+ <div class="tag">02 — UPLOAD YOUR SIGNAL</div>
+ <p>
+  Upload a CSV containing numerical signal measurements.
+  Use one column for amplitude or two columns for time and amplitude.
+ </p>
+
+ <input
+  type="file"
+  id="csvFile"
+  accept=".csv,.txt,text/csv,text/plain"
+  style="display:block;width:100%;min-height:48px;padding:10px;cursor:pointer;touch-action:manipulation;"
+>
+<textarea id="csvText" rows="6"
+ style="width:100%;margin-top:10px;padding:12px;
+ background:#0b1828;color:white;border:1px solid #36506d;
+ border-radius:9px;"
+ placeholder="Paste CSV data here&#10;Time,Amplitude&#10;0.00,0.12&#10;0.01,0.18&#10;0.02,0.10"></textarea>
+
+<br>
+<button onclick="pasteCSV()">Analyze pasted CSV</button>
+ <br>
+ <button
+  type="button"
+  onclick="uploadCSV()"
+  style="width:100%;min-height:48px;margin:8px 0;"
+>
+  Load and analyze CSV
+</button>
+
+<button
+  type="button"
+  onclick="downloadSample()"
+  style="width:100%;min-height:48px;margin:8px 0;"
+>
+  Download sample CSV
+</button>
+
+ <p id="uploadStatus" class="status">
+  No custom signal loaded.
+ </p>
+
+ <div class="small">
+  CSV format example:<br>
+  Time,Amplitude<br>
+  0.00,0.12<br>
+  0.01,0.18<br>
+  0.02,0.10<br><br>
+  A header row is optional. If there are two numerical columns,
+  the first is treated as time and the second as amplitude.
+  Files are processed in your browser.
+ </div>
+</div>
+
+<div class="card">
+ <div class="tag">03 — SIGNAL VISUALIZATION</div>
+ <div id="chart"></div>
+ <div class="small">
+  Blue: original signal • Green: smoothed signal
+ </div>
+</div>
+
+<div class="card">
+ <div class="tag">04 — SIGNAL MEASUREMENTS</div>
+
+ <div class="stat">
+  Samples<strong id="count">—</strong>
+ </div>
+
+ <div class="stat">
+  Mean<strong id="mean">—</strong>
+ </div>
+
+ <div class="stat">
+  Standard deviation<strong id="std">—</strong>
+ </div>
+
+ <div class="stat">
+  Minimum<strong id="minimum">—</strong>
+ </div>
+
+ <div class="stat">
+  Maximum<strong id="maximum">—</strong>
+ </div>
+
+ <div class="stat">
+  Smoothed variation<strong id="smooth">—</strong>
+ </div>
+</div>
+<div class="card">
+ <div class="tag">05 — ECG PEAK DETECTION</div>
+
+ <p>
+  Detect candidate peaks in your current signal.
+  For meaningful heart-rate estimates, use suitable ECG data
+  with a known sampling rate.
+ </p>
+
+ <label for="samplingRate">Sampling rate (samples per second):</label>
+ <br>
+
+ <input
+  type="number"
+  id="samplingRate"
+  value="250"
+  min="1"
+  max="10000"
+  step="1"
+  style="width:100%;"
+ >
+
+ <br>
+
+ <button onclick="analyzePeaks()">
+  Detect candidate peaks
+ </button>
+
+ <div class="stat">
+  Candidate peaks
+  <strong id="peakCount">—</strong>
+ </div>
+
+ <div class="stat">
+  Estimated heart rate
+  <strong id="heartRate">—</strong>
+ </div>
+
+ <p id="peakStatus" class="small">
+  Load a signal and run peak detection.
+ </p>
+</div>
+<div class="card">
+  <div class="tag">06 — SIGNAL QUALITY ANALYSIS</div>
+
+  <p>
+    Check your signal for possible flat sections and unusual values.
+    This is a basic educational screening tool.
+  </p>
+
+  <button onclick="analyzeSignalQuality()">
+    Analyze Signal Quality
+  </button>
+
+  <div
+    id="qualityReport"
+    style="margin-top: 15px; padding: 15px; background: #0b1828;
+    border-radius: 10px; white-space: pre-wrap; line-height: 1.7;"
+  >Generate a signal, then click Analyze Signal Quality.</div>
+</div>
+<div class="card">
+ <div class="tag">07 — EXPERIMENT REPORT</div>
+ <p>
+  Automatically summarize the loaded measurements and the effect
+  of smoothing.
+ </p>
+
+ <div id="report">Generate a sample or upload a CSV to begin.</div>
+</div>
+
+<footer>
+ SignalForge • Educational biomedical signal-processing prototype<br>
+ Not validated for clinical use. Does not diagnose diseases or
+ determine whether a person is healthy.
+</footer>
+
+<script>
+let x=[],raw=[],filtered=[];
+let showFilter=true;
+let sourceName="Simulated signal";
+
+function randomNoise(){
+ return Math.random()-0.5;
+}
+
+function variation(arr){
+ if(!arr.length)return 0;
+ const mean=arr.reduce((a,b)=>a+b,0)/arr.length;
+ return Math.sqrt(
+  arr.reduce((a,b)=>a+(b-mean)**2,0)/arr.length
+ );
+}
+
+function calculateFilter(arr) {
+  const method =
+    document.getElementById("filterType")?.value || "moving";
+
+  if (method === "none") {
+    return [...arr];
+  }
+
+  if (method === "exponential") {
+    if (arr.length === 0) return [];
+
+    const alpha = 0.25;
+    const result = [arr[0]];
+
+    for (let i = 1; i < arr.length; i++) {
+      result.push(
+        alpha * arr[i] + (1 - alpha) * result[i - 1]
+      );
+    }
+
+    return result;
+  }
+
+  return arr.map((value, i) => {
+    let total = 0;
+    let count = 0;
+
+    for (
+      let j = Math.max(0, i - 3);
+      j <= Math.min(arr.length - 1, i + 3);
+      j++
+    ) {
+      total += arr[j];
+      count++;
+    }
+
+    return total / count;
+  });
+}
+
+function generateSignal(){
+ const type=document.getElementById("kind").value;
+
+ x=[];raw=[];
+ const n=300;
+
+ for(let i=0;i<n;i++){
+  const t=i/30;
+  let s=0;
+
+  if(type==="ecg"){
+   const phase=i%60;
+   s=0.12*Math.sin(i*0.12);
+   if(phase===12)s+=0.5;
+   if(phase>=14&&phase<=16)
+    s+=1.8-Math.abs(phase-15)*0.8;
+   if(phase===20)s-=0.4;
+   if(phase>=25&&phase<=34)
+    s+=0.25*Math.sin((phase-25)/9*Math.PI);
+
+  }else if(type==="eeg"){
+   s=0.55*Math.sin(i*0.19)
+    +0.25*Math.sin(i*0.63)
+    +0.1*Math.sin(i*1.1);
+
+  }else if(type==="emg"){
+   s=(Math.sin(i*0.7)*0.45
+    +Math.sin(i*1.7)*0.3)
+    *(0.3+Math.abs(Math.sin(i*0.04)));
+
+  }else{
+   s=0.2*Math.sin(i*0.08)
+    +Math.pow(Math.max(0,Math.sin(i*0.105)),5);
+  }
+
+  x.push(Number(t.toFixed(3)));
+  raw.push(s+randomNoise()*0.45);
+ }
+
+ sourceName="Simulated "+type.toUpperCase()+" signal";
+ showFilter=true;
+ document.getElementById("uploadStatus").textContent=
+  "Showing simulated data.";
+ updateChart();
+}
+
+function uploadCSV(){
+ const file=document.getElementById("csvFile").files[0];
+
+ if(!file){
+  alert("Please select a CSV file first.");
+  return;
+ }
+
+ const reader=new FileReader();
+
+ reader.onload=function(event){
+  try{
+   const lines=event.target.result.trim().split(/\r?\n/);
+   const newX=[];
+   const newRaw=[];
+   let oneColumn=true;
+
+   for(const line of lines){
+    if(!line.trim())continue;
+
+    const parts=line.split(/[,;\t]/).map(v=>v.trim());
+    if(parts.length>=2)oneColumn=false;
+
+    const values=parts.map(v=>Number(v));
+
+    // Skip headings and other non-numeric rows.
+    if(values.some(v=>!Number.isFinite(v)))continue;
+
+    if(oneColumn){
+     newX.push(newRaw.length);
+     newRaw.push(values[0]);
+    }else if(values.length>=2){
+     newX.push(values[0]);
+     newRaw.push(values[1]);
+    }
+   }
+
+   if(newRaw.length<2){
+    throw new Error(
+     "Could not find enough numerical samples. Check your CSV format."
+    );
+   }
+
+   if(newRaw.length>100000){
+    throw new Error(
+     "Please upload no more than 100,000 samples at a time."
+    );
+   }
+
+   x=newX;
+   raw=newRaw;
+   filtered=calculateFilter(raw);
+   showFilter=true;
+   sourceName="Uploaded file: "+file.name;
+
+   document.getElementById("uploadStatus").textContent=
+    "Loaded "+raw.length+" samples successfully.";
+
+   updateChart();
+
+  }catch(error){
+   alert(error.message);
+   document.getElementById("uploadStatus").textContent=
+    "Could not load file. Please check its format.";
+  }
+ };
+
+ reader.onerror=function(){
+  alert("Unable to read this file.");
+ };
+
+ reader.readAsText(file);
+}
+function pasteCSV(){
+ const text=document.getElementById("csvText").value.trim();
+
+ if(!text){
+  alert("Bro, paste some CSV data first!");
+  return;
+ }
+
+ const lines=text.split(/\r?\n/);
+ const newX=[];
+ const newRaw=[];
+
+ for(const line of lines){
+  const parts=line.split(/[,;\t]/).map(v=>v.trim());
+  const values=parts.map(Number);
+
+  // Skip headings and invalid rows.
+  if(values.some(v=>v==="" || !Number.isFinite(v)))continue;
+
+  if(parts.length>=2){
+   newX.push(values[0]);
+   newRaw.push(values[1]);
+  }else{
+   newX.push(newRaw.length);
+   newRaw.push(values[0]);
+  }
+ }
+
+ if(newRaw.length<2){
+  alert("Please enter at least two rows of numerical data.");
+  return;
+ }
+
+ if(newRaw.length>100000){
+  alert("Please use no more than 100,000 samples.");
+  return;
+ }
+
+ x=newX;
+ raw=newRaw;
+ filtered=calculateFilter(raw);
+ showFilter=true;
+ sourceName="Pasted CSV data";
+
+ document.getElementById("uploadStatus").textContent=
+  "Successfully loaded "+raw.length+" samples from pasted data.";
+
+ updateChart();
+}
+function downloadSample(){
+ const content=
+  "Time,Amplitude\n"+
+  Array.from({length:100},(_,i)=>{
+   const t=i/100;
+   const a=Math.sin(2*Math.PI*5*t)
+    +(Math.random()-0.5)*0.2;
+   return t.toFixed(3)+","+a.toFixed(4);
+  }).join("\n");
+
+ const blob=new Blob([content],{type:"text/csv"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download="signalforge_sample.csv";
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+function toggleFilter(){
+ showFilter=!showFilter;
+ updateChart();
+}
+function analyzePeaks(){
+ if(raw.length<10){
+  document.getElementById("peakCount").textContent="—";
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "Too few samples. Load at least 10 samples; meaningful ECG analysis generally requires much more data.";
+  return;
+ }
+
+ const rate=Number(document.getElementById("samplingRate").value);
+
+ if(!Number.isFinite(rate)||rate<=0){
+  alert("Enter a valid positive sampling rate.");
+  return;
+ }
+
+ const mean=raw.reduce((a,b)=>a+b,0)/raw.length;
+
+ const sd=variation(raw);
+
+ if(sd===0){
+  document.getElementById("peakCount").textContent="0";
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "The signal is constant. No candidate peaks can be detected.";
+  return;
+ }
+
+ // Basic educational detector:
+ // Find local maxima above the signal mean.
+ const threshold=mean+0.5*sd;
+ const candidates=[];
+
+ for(let i=1;i<raw.length-1;i++){
+  if(
+   raw[i]>raw[i-1] &&
+   raw[i]>=raw[i+1] &&
+   raw[i]>threshold
+  ){
+   candidates.push(i);
+  }
+ }
+
+ // Keep candidate peaks separated by at least 250 ms.
+ const minDistance=Math.max(1,Math.round(rate*0.25));
+ const peaks=[];
+
+ for(const index of candidates){
+  if(
+   peaks.length===0 ||
+   index-peaks[peaks.length-1]>=minDistance
+  ){
+   peaks.push(index);
+  }else if(raw[index]>raw[peaks[peaks.length-1]]){
+   peaks[peaks.length-1]=index;
+  }
+ }
+
+ document.getElementById("peakCount").textContent=peaks.length;
+
+ // Plot detected candidate peaks on the original signal.
+ const traces=[
+  {
+   x:x,y:raw,type:"scatter",mode:"lines",
+   name:"Original signal",
+   line:{color:"#65a9ff",width:1.3}
+  },
+    ...(showFilter&&document.getElementById("filterType").value!=="none"?[{
+   x:x,y:filtered,type:"scatter",mode:"lines",
+   name:"Smoothed signal",
+   line:{color:"#53e0b5",width:2}
+  }]:[]),
+  {
+   x:peaks.map(i=>x[i]),
+   y:peaks.map(i=>raw[i]),
+   type:"scatter",mode:"markers",
+   name:"Candidate peaks",
+   marker:{color:"#ffb454",size:10,symbol:"circle"}
+  }
+ ];
+
+ Plotly.newPlot("chart",traces,{
+  paper_bgcolor:"#111e30",
+  plot_bgcolor:"#111e30",
+  font:{color:"#dce8f8"},
+  margin:{l:50,r:15,t:20,b:55},
+  xaxis:{title:"Time / sample index",gridcolor:"#253750"},
+  yaxis:{title:"Amplitude (input units)",gridcolor:"#253750"},
+  legend:{orientation:"h",y:-0.25}
+ },{responsive:true,displaylogo:false});
+
+ const duration=(raw.length-1)/rate;
+
+ if(peaks.length<2 || duration<3){
+  document.getElementById("heartRate").textContent="—";
+  document.getElementById("peakStatus").textContent=
+   "Found "+peaks.length+" candidate peak(s). The recording is too short or has too few peaks for a meaningful heart-rate estimate. This detector is not clinically validated.";
+  return;
+ }
+
+ const intervals=[];
+
+ for(let i=1;i<peaks.length;i++){
+  intervals.push((peaks[i]-peaks[i-1])/rate);
+ }
+
+ const sorted=[...intervals].sort((a,b)=>a-b);
+ const mid=Math.floor(sorted.length/2);
+
+ const median=sorted.length%2
+  ?sorted[mid]
+  :(sorted[mid-1]+sorted[mid])/2;
+
+ const bpm=60/median;
+
+ document.getElementById("heartRate").textContent=
+  Number.isFinite(bpm)?bpm.toFixed(1)+" BPM":"—";
+
+ document.getElementById("peakStatus").textContent=
+  "Found "+peaks.length+" candidate peaks in approximately "+
+  duration.toFixed(2)+" seconds. Estimated rate uses the median "+
+  "interval between detected peaks. This simple detector may miss "+
+ "peaks or mark noise; the estimate is not a medical result.";
+    }
+function analyzeSignalQuality() {
+  const output = document.getElementById("qualityReport");
+
+  if (!raw || raw.length < 10) {
+    output.textContent =
+      "Please generate a signal or upload at least 10 samples first.";
+    return;
+  }
+
+  const count = raw.length;
+  const mean = raw.reduce((sum, value) => sum + value, 0) / count;
+  const sd = variation(raw);
+  const min = Math.min(...raw);
+  const max = Math.max(...raw);
+
+  // Count adjacent samples that barely change.
+  let flatPairs = 0;
+
+  for (let i = 1; i < count; i++) {
+    if (Math.abs(raw[i] - raw[i - 1]) < 0.000001) {
+      flatPairs++;
+    }
+  }
+
+  const flatPercent = (flatPairs / (count - 1)) * 100;
+
+  // Flag values far from the mean for review.
+  let extremeCount = 0;
+
+  if (sd > 0) {
+    for (const value of raw) {
+      if (Math.abs(value - mean) > 3 * sd) {
+        extremeCount++;
+      }
+    }
+  }
+
+  let report = "SIGNAL QUALITY ANALYSIS\n\n";
+  report += "Samples analyzed: " + count + "\n";
+  report += "Standard deviation: " + sd.toFixed(4) + "\n";
+  report += "Minimum: " + min.toFixed(4) + "\n";
+  report += "Maximum: " + max.toFixed(4) + "\n\n";
+
+  report += "FLAT SECTION CHECK\n";
+  report += "Nearly unchanged adjacent samples: " +
+    flatPairs + " (" + flatPercent.toFixed(2) + "%)\n\n";
+
+  report += "EXTREME VALUE CHECK\n";
+  report += "Samples more than 3 standard deviations from the mean: " +
+    extremeCount + "\n\n";
+
+  report += "INTERPRETATION\n";
+
+  if (flatPercent > 5) {
+    report +=
+      "Many adjacent samples barely change. Inspect the signal for possible flat sections.\n";
+  } else {
+    report +=
+      "Few exactly or nearly repeated adjacent samples were detected by this check.\n";
+  }
+
+  if (extremeCount > 0) {
+    report +=
+      "Some values are unusually far from the mean. Inspect them; they may represent peaks, artifacts, or valid signal features.\n";
+  } else {
+    report +=
+      "No values exceeded the simple 3-standard-deviation threshold.\n";
+  }
+
+  report +=
+    "\nLIMITATION\nThis is a basic screening tool, not a validated signal-quality score. It does not reliably measure noise or diagnose medical conditions.";
+
+  output.textContent = report;
+}
+function updateChart(){
+ if(typeof Plotly==="undefined"){
+ document.getElementById("uploadStatus").textContent =
+  "Graph library failed to load. Check your internet connection and refresh.";
+ return;
+ }
+ if(!raw.length)return;
+
+ filtered=calculateFilter(raw);
+
+ const mean=raw.reduce((a,b)=>a+b,0)/raw.length;
+ const sd=variation(raw);
+ const min=Math.min(...raw);
+ const max=Math.max(...raw);
+ const smoothVariation=variation(filtered);
+const traces = [{
+  x: x,
+  y: raw,
+  type: "scatter",
+  mode: "lines",
+  name: "Original signal",
+  line: { color: "#65a9ff", width: 1.3 }
+}];
+if (showFilter && document.getElementById("filterType").value !== "none") {
+  traces.push({
+    x: x,
+    y: filtered,
+    type: "scatter",
+    mode: "lines",
+    name: document.getElementById("filterType").value === "none"
+      ? "Unfiltered copy"
+      : document.getElementById("filterType").value === "exponential"
+        ? "Exponentially smoothed signal"
+        : "Moving-average filtered signal",
+    line: { color: "#53e0b5", width: 2 }
+  });
+}
+
+
+ Plotly.newPlot("chart",traces,{
+  paper_bgcolor:"#111e30",
+  plot_bgcolor:"#111e30",
+  font:{color:"#dce8f8"},
+  margin:{l:50,r:15,t:20,b:55},
+  xaxis:{title:"Time / sample index",gridcolor:"#253750"},
+  yaxis:{title:"Amplitude (input units)",gridcolor:"#253750"},
+  legend:{orientation:"h",y:-0.25}
+ },{responsive:true,displaylogo:false});
+
+ document.getElementById("count").textContent=raw.length;
+ document.getElementById("mean").textContent=mean.toFixed(4);
+ document.getElementById("std").textContent=sd.toFixed(4);
+ document.getElementById("minimum").textContent=min.toFixed(4);
+ document.getElementById("maximum").textContent=max.toFixed(4);
+ document.getElementById("smooth").textContent=
+  smoothVariation.toFixed(4);
+
+ const reduction=sd>0
+  ?((sd-smoothVariation)/sd*100).toFixed(1)
+  : "0.0";
+
+ let report=
+  "SOURCE: "+sourceName+"\n\n"+
+  "SAMPLES: "+raw.length+"\n"+
+  "MEAN AMPLITUDE: "+mean.toFixed(4)+"\n"+
+  "STANDARD DEVIATION: "+sd.toFixed(4)+"\n"+
+  "MINIMUM AMPLITUDE: "+min.toFixed(4)+"\n"+
+  "MAXIMUM AMPLITUDE: "+max.toFixed(4)+"\n\n"+
+  "SMOOTHING OBSERVATION:\n";
+
+  const filterMethod=document.getElementById("filterType").value;
+ const filterName=filterMethod==="exponential"
+  ?"exponential smoothing"
+  :"moving-average filter";
+
+ if(filterMethod==="none"){
+  report+="No smoothing was applied, so the signal is unchanged.\n";
+ }else if(smoothVariation<sd){
+  report+="The "+filterName+" reduced the signal's "+
+   "standard deviation by approximately "+reduction+"%.\n";
+ }else{
+  report+="The "+filterName+" did not decrease the signal's "+
+   "standard deviation.\n";
+ }
+
+ report+=
+  "\nINTERPRETATION:\n"+
+  "Smoothing averages neighboring samples and may reduce "+
+  "rapid fluctuations. It can also remove important signal "+
+  "features, including sharp peaks.\n\n"+
+  "NEXT EXPERIMENT:\n"+
+  "Compare the original and smoothed waveforms. Check whether "+
+  "important peaks and waveform shapes are preserved. If this "+
+  "is real biomedical data, document its sampling rate, units, "+
+  "sensor, and preprocessing steps.\n\n"+
+  "LIMITATION:\n"+
+  "These statistics describe the supplied numerical data only. "+
+  "They do not establish signal quality, identify a disease, "+
+  "or determine whether a person is healthy.";
+
+ document.getElementById("report").textContent=report;
+}
+
+window.onerror = function(message, source, line, column) {
+  alert("JavaScript error: " + message + " at line " + line);
+};
+
+try {
+  generateSignal();
+} catch (error) {
+  alert("Startup error: " + error.message);
+}
+</script>
+<!-- SignalForge AI Lab Assistant -->
+<section id="ai-lab" style="
+  margin: 30px auto;
+  padding: 24px;
+  max-width: 900px;
+  background: #111827;
+  color: #f9fafb;
+  border: 1px solid #374151;
+  border-radius: 16px;
+  font-family: Arial, sans-serif;
+">
+  <h2>🧠 SignalForge AI Lab Assistant</h2>
+
+  <p>
+    Explore your signal measurements and learn biomedical
+    signal-processing concepts.
+  </p>
+
+  <label for="ai-question">Ask a question about your experiment:</label>
+
+  <textarea id="ai-question"
+    placeholder="Example: What does signal variation mean?"
+    style="
+      display: block;
+      width: 100%;
+      min-height: 90px;
+      margin: 12px 0;
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 8px;
+    "></textarea>
+
+  <button onclick="explainSignal()"
+    style="
+      padding: 12px 18px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    ">
+    Explain My Results
+  </button>
+
+  <div id="ai-response" aria-live="polite"
+    style="
+      margin-top: 18px;
+      padding: 16px;
+      background: #1f2937;
+      border-radius: 8px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    ">
+    Your explanation will appear here.
+  </div>
+
+  <p style="font-size: 12px; color: #9ca3af;">
+    Educational tool only. This feature does not diagnose medical
+    conditions. The current explanation is a prototype, not a live AI response.
+  </p>
+</section>
+
+<script>
+async function explainSignal() {
+  const question = document
+    .getElementById("ai-question")
+    .value.trim();
+
+  const response = document.getElementById("ai-response");
+
+  if (!question) {
+    response.textContent = "Please enter a question first.";
+    return;
+  }
+
+  if (!raw || raw.length < 2) {
+    response.textContent =
+      "Please generate a signal or upload numerical data first.";
+    return;
+  }
+  // Identify the signal type and explain it in simple English.
+  const signalType = String(sourceName).toLowerCase();
+
+  let signalExplanation = "";
+
+  if (signalType.includes("ecg")) {
+    signalExplanation =
+      "ECG: This signal represents electrical activity of the heart. " +
+      "Look for repeating patterns and changes in waveform shape. " +
+      "This simulated or uploaded signal cannot diagnose heart conditions.";
+
+  } else if (signalType.includes("eeg")) {
+    signalExplanation =
+      "EEG: This signal represents electrical activity recorded from the brain. " +
+      "Waveform patterns depend on the recording conditions. " +
+      "This signal alone cannot diagnose neurological conditions.";
+
+  } else if (signalType.includes("emg")) {
+    signalExplanation =
+      "EMG: This signal represents electrical activity associated with muscles. " +
+      "Amplitude changes may relate to muscle activation, but interpretation " +
+      "depends on the sensor, recording method, and task.";
+
+  } else if (signalType.includes("ppg")) {
+    signalExplanation =
+      "PPG: This optical signal measures changes in blood volume in tissue. " +
+      "Repeated pulses may be visible, but this signal alone cannot establish " +
+      "a person's health or diagnose a condition.";
+
+  } else {
+    signalExplanation =
+      "Signal: This dataset contains numerical measurements. " +
+      "Its physical meaning depends on the source and units.";
+  }
+  const count = raw.length;
+  const mean = raw.reduce((sum, value) => sum + value, 0) / count;
+  const sd = variation(raw);
+  const min = Math.min(...raw);
+  const max = Math.max(...raw);
+
+  const filterMethod =
+    document.getElementById("filterType").value;
+
+  const filterNames = {
+    moving: "Moving Average",
+    exponential: "Exponential Smoothing",
+    none: "No Filter"
+  };
+
+  const filteredSignal = calculateFilter(raw);
+  const filteredSD = variation(filteredSignal);
+
+  const measurements = {
+    source: sourceName,
+    sampleCount: count,
+    mean: Number(mean.toFixed(4)),
+    standardDeviation: Number(sd.toFixed(4)),
+    minimum: Number(min.toFixed(4)),
+    maximum: Number(max.toFixed(4)),
+    filterMethod: filterNames[filterMethod] || filterMethod,
+    filteredStandardDeviation: Number(filteredSD.toFixed(4))
+  };
+
+  response.textContent = "Sending your question to SignalForge...";
+
+  try {
+    const result = await fetch(
+      "https://signalforge-ai.csrider477.workers.dev",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          question: question,
+          measurements: measurements
+        })
+      }
+    );
+
+    const data = await result.json();
+
+    if (!result.ok) {
+      throw new Error(data.error || "The request failed.");
+    }
+
+ response.textContent =
+  "SIGNALFORGE LAB ASSISTANT\n\n" +
+  signalExplanation + "\n\n" +
+  "YOUR QUESTION:\n" + question + "\n\n" +
+  "SIGNAL MEASUREMENTS:\n" +
+  JSON.stringify(measurements, null, 2) +
+  "\n\nBACKEND STATUS:\n" +
+  (data.aiConnected
+    ? "AI model connected."
+    : "Backend connected, but a real AI model is not connected yet.");
+  } catch (error) {
+    response.textContent =
+      "Connection failed.\n\n" +
+      "Please check your internet connection and Worker settings.\n\n" +
+      "Details: " + error.message;
+  }
+}
+</script>
+</body>
+</html>
