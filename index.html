@@ -231,6 +231,40 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
     border-radius: 10px; white-space: pre-wrap; line-height: 1.7;"
   >Generate a signal, then click Analyze Signal Quality.</div>
 </div>
+ <!-- 06 — ECG HEART RATE CALCULATOR -->
+<div class="card">
+  <div class="tag">06 — ECG HEART RATE CALCULATOR</div>
+
+  <h3>❤️ Heart Rate Analysis</h3>
+
+  <p>
+    Calculate estimated heart rate and RR intervals
+    using the peaks detected in Section 05.
+  </p>
+
+  <button onclick="calculateHeartRate()">
+    Calculate Heart Rate
+  </button>
+
+  <div class="stat">
+    Average RR Interval
+    <strong id="rrInterval">—</strong>
+  </div>
+
+  <div class="stat">
+    Estimated Heart Rate
+    <strong id="calculatedBPM">—</strong>
+  </div>
+
+  <p id="heartRateStatus" class="small">
+    First run ECG Peak Detection in Section 05.
+  </p>
+
+  <div class="small">
+    Educational estimate only. This feature is not
+    validated for clinical use.
+  </div>
+</div>
 <div class="card">
  <div class="tag">07 — EXPERIMENT REPORT</div>
  <p>
