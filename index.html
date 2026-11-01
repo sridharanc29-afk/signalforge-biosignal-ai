@@ -1227,6 +1227,101 @@ function calculateECGHeartRate() {
 
   output.append(heading, details, note);
 }
+ function calculateHeartRate() {
+  const rrOutput = document.getElementById("rrInterval");
+  const bpmOutput = document.getElementById("calculatedBPM");
+  const status = document.getElementById("heartRateStatus");
+
+  if (!raw || raw.length < 10) {
+    rrOutput.textContent = "—";
+    bpmOutput.textContent = "—";
+    status.textContent = "Generate or load a signal first.";
+    return;
+  }
+
+  const rate = Number(
+    document.getElementById("samplingRate").value
+  );
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    rrOutput.textContent = "—";
+    bpmOutput.textContent = "—";
+    status.textContent = "Enter a valid sampling rate.";
+    return;
+  }
+
+  const mean = raw.reduce((sum, value) => sum + value, 0) / raw.length;
+  const sd = variation(raw);
+
+  if (sd === 0) {
+    rrOutput.textContent = "—";
+    bpmOutput.textContent = "—";
+    status.textContent = "The signal is constant; no peaks can be detected.";
+    return;
+  }
+
+  const threshold = mean + 0.5 * sd;
+  const candidates = [];
+
+  for (let i = 1; i < raw.length - 1; i++) {
+    if (
+      raw[i] > raw[i - 1] &&
+      raw[i] >= raw[i + 1] &&
+      raw[i] > threshold
+    ) {
+      candidates.push(i);
+    }
+  }
+
+  const minDistance = Math.max(1, Math.round(rate * 0.25));
+  const peaks = [];
+
+  for (const index of candidates) {
+    if (
+      peaks.length === 0 ||
+      index - peaks[peaks.length - 1] >= minDistance
+    ) {
+      peaks.push(index);
+    } else {
+      const previous = peaks[peaks.length - 1];
+
+      if (raw[index] > raw[previous]) {
+        peaks[peaks.length - 1] = index;
+      }
+    }
+  }
+
+  if (peaks.length < 2) {
+    rrOutput.textContent = "—";
+    bpmOutput.textContent = "—";
+    status.textContent =
+      "Fewer than two candidate peaks were found. Try another signal.";
+    return;
+  }
+
+  const intervals = [];
+
+  for (let i = 1; i < peaks.length; i++) {
+    intervals.push((peaks[i] - peaks[i - 1]) / rate);
+  }
+
+  intervals.sort((a, b) => a - b);
+
+  const middle = Math.floor(intervals.length / 2);
+  const medianRR = intervals.length % 2
+    ? intervals[middle]
+    : (intervals[middle - 1] + intervals[middle]) / 2;
+
+  const bpm = 60 / medianRR;
+
+  rrOutput.textContent = medianRR.toFixed(3) + " seconds";
+  bpmOutput.textContent = bpm.toFixed(1) + " BPM";
+
+  status.textContent =
+    "Calculated from " + peaks.length +
+    " candidate peaks. Educational estimate only; " +
+    "incorrect peak detection or sampling-rate settings can affect accuracy.";
+ }
       </script>
 </body>
 </html>
