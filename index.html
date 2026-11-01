@@ -990,5 +990,209 @@ async function explainSignal() {
   }
 }
 </script>
+ <!-- ECG HEART RATE CALCULATOR -->
+<section id="ecg-heart-rate" style="
+  margin: 24px auto;
+  padding: 20px;
+  max-width: 700px;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+">
+  <h2>❤️ ECG Heart Rate Calculator</h2>
+
+  <p>
+    Estimate heart rate from a numerical ECG signal.
+    Enter the samples in order, separated by commas.
+  </p>
+
+  <label for="ecg-sampling-rate">Sampling rate (samples/second, Hz)</label>
+
+  <input
+    id="ecg-sampling-rate"
+    type="number"
+    min="1"
+    step="any"
+    value="250"
+    style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;"
+  >
+
+  <label for="ecg-samples">ECG samples</label>
+
+  <textarea
+    id="ecg-samples"
+    rows="5"
+    placeholder="Example: 0, 0.1, 0.2, 1.5, 0.3, 0.1..."
+    style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;"
+  ></textarea>
+
+  <button
+    type="button"
+    onclick="calculateECGHeartRate()"
+    style="padding:12px 18px;border:0;border-radius:8px;cursor:pointer;font-weight:bold;"
+  >
+    Calculate Heart Rate
+  </button>
+
+  <div
+    id="ecg-heart-rate-result"
+    role="status"
+    aria-live="polite"
+    style="margin-top:18px;line-height:1.7;"
+  >
+    Enter ECG samples to begin.
+  </div>
+</section>
+
+<script>
+function calculateECGHeartRate() {
+  const fs = Number(
+    document.getElementById("ecg-sampling-rate").value
+  );
+
+  const input = document.getElementById("ecg-samples").value.trim();
+  const output = document.getElementById("ecg-heart-rate-result");
+
+  if (!Number.isFinite(fs) || fs <= 0) {
+    output.textContent = "Please enter a valid sampling rate.";
+    return;
+  }
+
+  if (!input) {
+    output.textContent = "Please enter ECG samples.";
+    return;
+  }
+
+  const parts = input.split(/[\s,;]+/).filter(Boolean);
+  const signal = parts.map(Number);
+
+  if (
+    signal.length < 10 ||
+    signal.some(value => !Number.isFinite(value))
+  ) {
+    output.textContent =
+      "Enter at least 10 valid numerical samples.";
+    return;
+  }
+
+  const mean =
+    signal.reduce((sum, value) => sum + value, 0) / signal.length;
+
+  const variance =
+    signal.reduce((sum, value) => sum + (value - mean) ** 2, 0)
+    / signal.length;
+
+  const sd = Math.sqrt(variance);
+
+  if (sd < 1e-12) {
+    output.textContent =
+      "The signal is nearly constant. No reliable peaks can be detected.";
+    return;
+  }
+
+  // Smooth the signal with a short moving average.
+  const windowSize = Math.max(1, Math.round(fs * 0.04));
+  const smooth = signal.map((_, i) => {
+    let sum = 0;
+    let count = 0;
+
+    for (
+      let j = Math.max(0, i - Math.floor(windowSize / 2));
+      j <= Math.min(signal.length - 1, i + Math.floor(windowSize / 2));
+      j++
+    ) {
+      sum += signal[j];
+      count++;
+    }
+
+    return sum / count;
+  });
+
+  const smoothMean =
+    smooth.reduce((sum, value) => sum + value, 0) / smooth.length;
+
+  const smoothSD = Math.sqrt(
+    smooth.reduce(
+      (sum, value) => sum + (value - smoothMean) ** 2,
+      0
+    ) / smooth.length
+  );
+
+  // Candidate positive peaks must exceed the signal's mean
+  // by a fraction of its standard deviation.
+  const threshold = smoothMean + 0.5 * smoothSD;
+
+  // Avoid counting multiple peaks within 250 ms.
+  const minDistance = Math.max(1, Math.round(fs * 0.25));
+  const peaks = [];
+
+  for (let i = 1; i < smooth.length - 1; i++) {
+    if (
+      smooth[i] > threshold &&
+      smooth[i] > smooth[i - 1] &&
+      smooth[i] >= smooth[i + 1]
+    ) {
+      if (
+        peaks.length === 0 ||
+        i - peaks[peaks.length - 1] >= minDistance
+      ) {
+        peaks.push(i);
+      } else {
+        const previous = peaks[peaks.length - 1];
+
+        if (smooth[i] > smooth[previous]) {
+          peaks[peaks.length - 1] = i;
+        }
+      }
+    }
+  }
+
+  const durationSeconds = signal.length / fs;
+
+  if (peaks.length < 2) {
+    output.textContent =
+      "Not enough peaks detected to estimate heart rate. " +
+      "Try checking your signal and sampling rate.";
+    return;
+  }
+
+  const intervals = [];
+
+  for (let i = 1; i < peaks.length; i++) {
+    intervals.push((peaks[i] - peaks[i - 1]) / fs);
+  }
+
+  const averageInterval =
+    intervals.reduce((sum, value) => sum + value, 0)
+    / intervals.length;
+
+  const bpm = 60 / averageInterval;
+
+  if (!Number.isFinite(bpm) || bpm <= 0) {
+    output.textContent = "Could not calculate a valid heart rate.";
+    return;
+  }
+
+  output.innerHTML = "";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Estimated Heart Rate: " + bpm.toFixed(1) + " BPM";
+
+  const details = document.createElement("p");
+  details.textContent =
+    "Detected peaks: " + peaks.length +
+    " | Average interval: " + averageInterval.toFixed(3) + " seconds" +
+    " | Signal duration: " + durationSeconds.toFixed(2) + " seconds";
+
+  const note = document.createElement("p");
+  note.textContent =
+    "Educational estimate only. Peak detection can be inaccurate " +
+    "for noisy, inverted, or irregular ECG signals. This is not a diagnosis.";
+
+  output.append(heading, details, note);
+}
+      </script>
 </body>
 </html>
