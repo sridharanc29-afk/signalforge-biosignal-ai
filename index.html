@@ -714,6 +714,9 @@ function analyzePeaks() {
   // STEP 5: Calculate RR intervals.
 
   const duration = (raw.length - 1) / rate;
+ peakStatus.textContent =
+  "Debug: Duration = " + duration.toFixed(2) +
+  " seconds | Peaks = " + peaks.length;
  console.log("ECG Duration:", duration, "seconds");
 console.log("Detected Peaks:", peaks.length);
 
