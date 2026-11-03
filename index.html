@@ -255,7 +255,25 @@ footer{padding:20px 0;color:#8296b0;font-size:12px}
     Estimated Heart Rate
     <strong id="calculatedBPM">—</strong>
   </div>
+<div class="stat">
+  Average Heart Rate
+  <strong id="averageBPM">—</strong>
+</div>
 
+<div class="stat">
+  Minimum Heart Rate
+  <strong id="minimumBPM">—</strong>
+</div>
+
+<div class="stat">
+  Maximum Heart Rate
+  <strong id="maximumBPM">—</strong>
+</div>
+
+<div class="stat">
+  SDNN (RR Variability)
+  <strong id="sdnnValue">—</strong>
+</div>
   <p id="heartRateStatus" class="small">
     First run ECG Peak Detection in Section 05.
   </p>
@@ -1239,12 +1257,24 @@ function calculateECGHeartRate() {
  function calculateHeartRate() {
   const rrOutput = document.getElementById("rrInterval");
   const bpmOutput = document.getElementById("calculatedBPM");
+  const averageOutput = document.getElementById("averageBPM");
+  const minimumOutput = document.getElementById("minimumBPM");
+  const maximumOutput = document.getElementById("maximumBPM");
+  const sdnnOutput = document.getElementById("sdnnValue");
   const status = document.getElementById("heartRateStatus");
 
-  if (!raw || raw.length < 10) {
+  function resetResults(message) {
     rrOutput.textContent = "—";
     bpmOutput.textContent = "—";
-    status.textContent = "Generate or load a signal first.";
+    averageOutput.textContent = "—";
+    minimumOutput.textContent = "—";
+    maximumOutput.textContent = "—";
+    sdnnOutput.textContent = "—";
+    status.textContent = message;
+  }
+
+  if (!raw || raw.length < 10) {
+    resetResults("Generate or load a signal first.");
     return;
   }
 
@@ -1253,19 +1283,15 @@ function calculateECGHeartRate() {
   );
 
   if (!Number.isFinite(rate) || rate <= 0) {
-    rrOutput.textContent = "—";
-    bpmOutput.textContent = "—";
-    status.textContent = "Enter a valid sampling rate.";
+    resetResults("Enter a valid sampling rate.");
     return;
   }
 
   const mean = raw.reduce((sum, value) => sum + value, 0) / raw.length;
   const sd = variation(raw);
 
-  if (sd === 0) {
-    rrOutput.textContent = "—";
-    bpmOutput.textContent = "—";
-    status.textContent = "The signal is constant; no peaks can be detected.";
+  if (!Number.isFinite(sd) || sd === 0) {
+    resetResults("The signal is constant; no peaks can be detected.");
     return;
   }
 
@@ -1301,36 +1327,72 @@ function calculateECGHeartRate() {
   }
 
   if (peaks.length < 2) {
-    rrOutput.textContent = "—";
-    bpmOutput.textContent = "—";
-    status.textContent =
-      "Fewer than two candidate peaks were found. Try another signal.";
+    resetResults("Fewer than two candidate peaks were found. Try another signal.");
     return;
   }
 
   const intervals = [];
 
   for (let i = 1; i < peaks.length; i++) {
-    intervals.push((peaks[i] - peaks[i - 1]) / rate);
+    const rr = (peaks[i] - peaks[i - 1]) / rate;
+
+    if (Number.isFinite(rr) && rr > 0) {
+      intervals.push(rr);
+    }
   }
 
-  intervals.sort((a, b) => a - b);
+  if (intervals.length === 0) {
+    resetResults("Unable to calculate valid RR intervals.");
+    return;
+  }
 
-  const middle = Math.floor(intervals.length / 2);
-  const medianRR = intervals.length % 2
-    ? intervals[middle]
-    : (intervals[middle - 1] + intervals[middle]) / 2;
+  const sortedIntervals = [...intervals].sort((a, b) => a - b);
+
+  const middle = Math.floor(sortedIntervals.length / 2);
+
+  const medianRR = sortedIntervals.length % 2
+    ? sortedIntervals[middle]
+    : (sortedIntervals[middle - 1] + sortedIntervals[middle]) / 2;
+
+  const averageRR =
+    intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
 
   const bpm = 60 / medianRR;
+  const averageBPM = 60 / averageRR;
+
+  const heartRates = intervals.map(rr => 60 / rr);
+
+  const minimumBPM = Math.min(...heartRates);
+  const maximumBPM = Math.max(...heartRates);
+
+  let sdnn = 0;
+
+  if (intervals.length >= 2) {
+    const squaredDifferences = intervals.map(
+      rr => Math.pow((rr - averageRR) * 1000, 2)
+    );
+
+    sdnn = Math.sqrt(
+      squaredDifferences.reduce((sum, value) => sum + value, 0) /
+      (intervals.length - 1)
+    );
+  }
 
   rrOutput.textContent = medianRR.toFixed(3) + " seconds";
   bpmOutput.textContent = bpm.toFixed(1) + " BPM";
+  averageOutput.textContent = averageBPM.toFixed(1) + " BPM";
+  minimumOutput.textContent = minimumBPM.toFixed(1) + " BPM";
+  maximumOutput.textContent = maximumBPM.toFixed(1) + " BPM";
+
+  sdnnOutput.textContent = intervals.length >= 2
+    ? sdnn.toFixed(2) + " ms"
+    : "Not enough intervals";
 
   status.textContent =
-    "Calculated from " + peaks.length +
-    " candidate peaks. Educational estimate only; " +
-    "incorrect peak detection or sampling-rate settings can affect accuracy.";
- }
-      </script>
+    "Analysis complete: " + peaks.length +
+    " candidate peaks and " + intervals.length +
+    " RR intervals detected. Check peak detection and sampling rate " +
+    "for accuracy. Educational estimate only.";
+}
 </body>
 </html>
