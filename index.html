@@ -714,6 +714,8 @@ function analyzePeaks() {
   // STEP 5: Calculate RR intervals.
 
   const duration = (raw.length - 1) / rate;
+ console.log("ECG Duration:", duration, "seconds");
+console.log("Detected Peaks:", peaks.length);
 
   if (peaks.length < 2 || duration < 3) {
     heartRate.textContent = "—";
